@@ -9,8 +9,8 @@ agent that will be able to successfully play the game.
 # C++ Compilation and Running (Linux)
 
 - SFML can be installed using the command: sudo apt-get install libsfml-dev
-- To Compile the program cd to the c_plus_plus_pong folder and use the command make
-- The program can be run by typing make run
+- To Compile the program cd to the c_plus_plus_pong folder and use the command: make
+- The program can be run with the command: make run
 # Game Instructions
 
 W/S - Left Slider up and down
