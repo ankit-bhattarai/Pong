@@ -31,13 +31,42 @@ def random_message():
     return text
 
 
-def convert_stream_to_list(stream_text):
-    """Breaks down a stream of text containing floats seperated by spaces into a list of floats"""
-    data_list = [float(i) for i in stream_text.split()]
-    return data_list
 
-def get_dictionary_from_stream(stream_text, keys=default_titles):
-    """Converts the stream into a dictionary with the values of the dictionary being values from the stream"""
-    values = convert_stream_to_list(stream_text)
-    dictionary = {key:value for key, value in zip(keys, values)}
-    return dictionary
+class State:
+    def __init__(self):
+        self.x1 = None
+        self.x1dot = None
+        self.x2 = None
+        self.x2dot = None
+        self.ball_x = None
+        self.ball_y = None
+        self.ball_xdot = None
+        self.ball_ydot = None
+        self.reward_1 = None
+        self.reward_2 = None
+
+    @staticmethod
+    def convert_stream_to_list(stream_text):
+        """Breaks down a stream of text containing floats seperated by spaces into a list of floats"""
+        data_list = [float(i) for i in stream_text.split()]
+        return data_list
+
+    @classmethod
+    def get_dictionary_from_stream(cls, stream_text, keys=default_titles):
+        """Converts the stream into a dictionary with the values of the dictionary being values from the stream"""
+        values = cls.convert_stream_to_list(stream_text)
+        dictionary = {key: value for key, value in zip(keys, values)}
+        return dictionary
+
+    def update_state(self, stream_text, keys=default_titles):
+        dictionary = self.get_dictionary_from_stream(stream_text, keys)
+        self.x1 = dictionary["x1"]
+        self.x2 = dictionary["x2"]
+        self.x1dot = dictionary["x1dot"]
+        self.x2dot = dictionary["x2dot"]
+        self.ball_x = dictionary["bx"]
+        self.ball_y = dictionary["by"]
+        self.ball_xdot = dictionary["bxdot"]
+        self.ball_ydot = dictionary["bydot"]
+        self.reward_1 = dictionary["r1"]
+        self.reward_2 = dictionary["r2"]
