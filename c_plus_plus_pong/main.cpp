@@ -106,6 +106,7 @@ public:
     float velocity;
     sf::Vector2f initial_position;
     int score;
+    int reward;
     RectangleSliders(string name, sf::Keyboard::Key key1, string key_1_text, sf::Keyboard::Key key2,
                      string key_2_text, sf::Vector2f size, sf::Vector2f position, sf::Color color):
             Object(name, key1, key_1_text, key2, key_2_text),
@@ -115,6 +116,7 @@ public:
         this->initial_position = position;
         this->velocity = 0;
         this->score = 0;
+        this->reward = 0;
     }
     float get_y(){
         return this->getPosition().y;
@@ -439,6 +441,37 @@ public:
         }
     }
 
+    string generate_output_message(RectangleSliders* slider_1_pointer, RectangleSliders* slider_2_pointer,
+                                   Ball* ball_pointer){
+        RectangleSliders slider1 = *slider_1_pointer;
+        RectangleSliders slider2 = *slider_2_pointer;
+        Ball ball = *ball_pointer;
+        string output_message = this->convert_input_to_output(slider1.get_y() + 25.f,
+                                                       slider1.velocity,
+                                                       slider2.get_y() + 25.f,
+                                                       slider2.velocity,
+                                                       ball.get_x(),
+                                                       ball.get_xdot(),
+                                                       ball.get_y(),
+                                                       ball.get_ydot(),
+                                                       slider1.reward,
+                                                       slider2.reward);
+        return output_message;
+    }
+
+    void board_commands(RectangleSliders* slider_1_pointer, RectangleSliders* slider_2_pointer,
+                        Ball* ball_pointer, bool left_slider_manual, bool right_slider_manual){
+        string output_message = this->generate_output_message(slider_1_pointer, slider_2_pointer, ball_pointer);
+        int command1, command2;
+        this->send_and_receive_message(output_message, &command1, &command2);
+        if (!left_slider_manual){
+            slider_1_pointer->increment_velocity(command1);
+        }
+        if (!right_slider_manual){
+            slider_2_pointer->increment_velocity(command2);
+        }
+    }
+
 };
 
 
@@ -451,12 +484,9 @@ void update_board(sf::Text* text_pointer, sf::Color color,
 
 int main(){
     set_stream_setting();
-    sf::IpAddress ip("localhost");
-    IntegerStream stream_device(ip, 55001);
+    IntegerStream stream_device(sf::IpAddress("localhost"), 55001);
     stream_device.connect_stream();
     int command1, command2;
-    float reward1 = 0.f;
-    float reward2 = 0.f;
     sf::Font font;
     font.loadFromFile("SwanseaBold-D0ox.ttf");
     sf::Text score1("0", font, 30);
@@ -466,12 +496,10 @@ int main(){
     update_board(&score2, sf::Color::Blue, 0.75, 0.15);
     update_board(&pauseboard, sf::Color::Green, 0.25, 0.05);
     PauseThing pause_board("Pause Board", sf::Keyboard::C, "C", sf::Keyboard::P, "P");
-    sf::Vector2f obj1_position(0.05 * WINDOW_SIZE_X, 0.5 * WINDOW_SIZE_Y);
-    sf::Vector2f obj2_position(0.95 * WINDOW_SIZE_X, 0.5 * WINDOW_SIZE_Y);
     RectangleSliders slider1("Left Slider", sf::Keyboard::W, "W", sf::Keyboard::S, "S", sf::Vector2f(10, 50),
-                             obj1_position, sf::Color::Red);
+                             sf::Vector2f(0.05 * WINDOW_SIZE_X, 0.5 * WINDOW_SIZE_Y), sf::Color::Red);
     RectangleSliders slider2("Right Slider", sf::Keyboard::Up, "Up", sf::Keyboard::Down, "Down", sf::Vector2f(10, 50),
-                             obj2_position, sf::Color::Blue);
+                             sf::Vector2f(0.95 * WINDOW_SIZE_X, 0.5 * WINDOW_SIZE_Y), sf::Color::Blue);
     Ball ball("4/6", sf::Keyboard::Numpad4, "4", sf::Keyboard::Numpad6, "6", sf::Keyboard::Numpad8, "8",
               sf::Keyboard::Numpad2, "2", BALL_SIZE, sf::Color::Green, MAX_SPEED_BALL, 1.f);
     Playground beta("A Fun Game");
@@ -502,24 +530,7 @@ int main(){
         }
 
         if (stream){
-            string output_message = stream_device.convert_input_to_output(slider1.get_y() + 25.f,
-                                                                          slider1.velocity,
-                                                                          slider2.get_y() + 25.f,
-                                                                          slider2.velocity,
-                                                                          ball.get_x(),
-                                                                          ball.get_xdot(),
-                                                                          ball.get_y(),
-                                                                          ball.get_ydot(),
-                                                                          reward1,
-                                                                          reward2);
-
-            stream_device.send_and_receive_message(output_message, &command1, &command2);
-            if (!left_slider_manual){
-                slider1.increment_velocity(command1);
-            }
-            if (!right_slider_manual) {
-                slider2.increment_velocity(command2);
-            }
+            stream_device.board_commands(&slider1, &slider2, &ball, left_slider_manual, right_slider_manual);
 
         }
         int score = ball.update_position();
