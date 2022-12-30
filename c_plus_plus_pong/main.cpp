@@ -333,24 +333,7 @@ public:
     }
 };
 
-class Playground{
-public:
-    RectangleSliders* slider1_pointer;
-    RectangleSliders* slider2_pointer;
-    Ball* ball_pointer;
-    string game_name;
-    Playground(string game_name){
-        this->game_name = game_name;
-    }
-    void get_sliders(RectangleSliders* slider1_pointer, RectangleSliders* slider2_pointer){
-        this->slider1_pointer = slider1_pointer;
-        this->slider2_pointer = slider2_pointer;
-    }
-    void get_ball(Ball* ball_pointer){
-        this->ball_pointer = ball_pointer;
-    }
 
-};
 
 class PauseThing: public Object{
 public:
@@ -372,19 +355,6 @@ public:
         this->pause_everything();
     }
 
-};
-class Score: public sf::Text{
-public:
-    Score(sf::Font font, sf::Color color, sf::Vector2f position, int size=30, string initial_score = "0"):
-            sf::Text(initial_score, font, size)
-    {
-        this->setFillColor(color);
-        this->setPosition(position);
-        this->setStyle(sf::Text::Bold);
-    }
-    void update_score(int score){
-        this->setString(to_string(score));
-    }
 };
 
 class IntegerStream: public sf::TcpSocket{
@@ -474,6 +444,54 @@ public:
 
 };
 
+class Playground{
+public:
+    RectangleSliders* slider1_pointer;
+    RectangleSliders* slider2_pointer;
+    Ball* ball_pointer;
+    string game_name;
+    sf::Text* score1_pointer;
+    sf::Text* score2_pointer;
+    PauseThing* pausething_pointer;
+    Playground(string game_name){
+        this->game_name = game_name;
+    }
+    void get_sliders(RectangleSliders* slider1_pointer, RectangleSliders* slider2_pointer){
+        this->slider1_pointer = slider1_pointer;
+        this->slider2_pointer = slider2_pointer;
+    }
+    void get_ball(Ball* ball_pointer){
+        this->ball_pointer = ball_pointer;
+    }
+
+    void get_scores_board(sf::Text* score1_pointer, sf::Text* score2_pointer){
+        this->score1_pointer = score1_pointer;
+        this->score2_pointer = score2_pointer;
+    }
+
+    void get_pause_board(PauseThing* pausething_pointer){
+        this->pausething_pointer = pausething_pointer;
+    }
+
+    void handle_score(){
+        int score = this->ball_pointer->update_position();
+        if (score != 0){
+            if (score == 1){
+                this->slider2_pointer->increment_score();
+                this->score2_pointer->setString(this->slider2_pointer->get_string_score());
+            }
+            else{ // slider 1 scored
+                this->slider1_pointer->increment_score();
+                this->score1_pointer->setString(this->slider1_pointer->get_string_score());
+            }
+            this->slider1_pointer->reset();
+            this->slider2_pointer->reset();
+            this->ball_pointer->reset(score);
+            this->pausething_pointer->pause_everything();
+        }
+    }
+
+};
 
 void update_board(sf::Text* text_pointer, sf::Color color,
                   float factor_x, float factor_y, sf::Text::Style style=sf::Text::Bold){
@@ -502,10 +520,11 @@ int main(){
                              sf::Vector2f(0.95 * WINDOW_SIZE_X, 0.5 * WINDOW_SIZE_Y), sf::Color::Blue);
     Ball ball("4/6", sf::Keyboard::Numpad4, "4", sf::Keyboard::Numpad6, "6", sf::Keyboard::Numpad8, "8",
               sf::Keyboard::Numpad2, "2", BALL_SIZE, sf::Color::Green, MAX_SPEED_BALL, 1.f);
-    Playground beta("A Fun Game");
-    beta.get_sliders(&slider1, &slider2);
-    beta.get_ball(&ball);
-    sf::RenderWindow window(sf::VideoMode(WINDOW_SIZE_X, WINDOW_SIZE_Y), beta.game_name);
+    Playground playground("A Fun Game");
+    playground.get_sliders(&slider1, &slider2);
+    playground.get_ball(&ball);
+    playground.get_scores_board(&score1, &score2);
+    sf::RenderWindow window(sf::VideoMode(WINDOW_SIZE_X, WINDOW_SIZE_Y), playground.game_name);
     while (window.isOpen()){
         if ((stream) & (!one_person_playing)){
             pause_game = false;
@@ -533,21 +552,7 @@ int main(){
             stream_device.board_commands(&slider1, &slider2, &ball, left_slider_manual, right_slider_manual);
 
         }
-        int score = ball.update_position();
-        if (score != 0){
-            if (score == 1){
-                slider2.increment_score();
-                score2.setString(slider2.get_string_score());
-            }
-            else{ // slider 1 scored
-                slider1.increment_score();
-                score1.setString(slider1.get_string_score());
-            }
-            slider1.reset();
-            slider2.reset();
-            ball.reset(score);
-            pause_board.pause_everything();
-        }
+        playground.handle_score();
         slider1.update_position();
         slider2.update_position();
         if (ball.getGlobalBounds().intersects(slider1.getGlobalBounds())){
