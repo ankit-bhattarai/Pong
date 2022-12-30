@@ -24,15 +24,40 @@ using namespace std;
 
 #define BALL_SIZE 10.0
 
-#define MAX_SPEED_SLIDER 3.0
+#define MAX_SPEED_SLIDER 5.0
 #define DELTA_SPEED_SLIDER 1.0
 
-#define MAX_SPEED_BALL 4.0
-#define DELTA_SPEED_BALL 0.25
+#define MAX_SPEED_BALL 5.0
+#define DELTA_SPEED_BALL 1.0
 
 bool pause_game = true;
+bool stream = true;
+bool slider_velocity=false;
 
-#define STREAM false
+bool left_slider_manual = false;
+bool right_slider_manual = false;
+bool one_person_playing = true;
+
+float delay = 0.5;
+
+void set_stream_setting(){
+    if ((left_slider_manual) | (right_slider_manual)){
+        stream = true;
+        one_person_playing = true;
+        delay = 0.5;
+        if ((left_slider_manual) & (right_slider_manual)){
+            stream = false;
+        }
+    }
+    else{
+        stream = true;
+        one_person_playing = false;
+        delay = 0.01;
+    }
+    std::cout << "Stream: " << stream << " Left Manual: " << left_slider_manual << " Right Manual: ";
+    std::cout << right_slider_manual << std::endl;
+}
+
 
 // Font source https://www.fontspace.com/get/family/1137
 class Object
@@ -103,14 +128,16 @@ public:
         if (y >= Y_LIM_SLIDER_DOWN){
             this->velocity=0.f;
             this->move(0.f, -1.f);
-            std::cout << this->getPosition().y << "\n";
         }
     }
 
     void update_position(){
         if (!pause_game){
             this->edge_check();
-            this->move(0.f, velocity);
+            this->move(0.f, this->velocity);
+            if (!slider_velocity){
+                this->velocity = 0;
+            }
         }
     }
     void increment_velocity(int direction){
@@ -216,10 +243,12 @@ public:
         if (current_position.y <= Y_LIM_BALL){
             this->flip_y_velocity();
             this->setPosition(current_position.x, Y_LIM_BALL + 1);
+            this->increment_speed_y(+1.f);
         }
         if (current_position.y >= WINDOW_SIZE_Y - Y_LIM_BALL){
             this->flip_y_velocity();
             this->setPosition(current_position.x, WINDOW_SIZE_Y - Y_LIM_BALL - 1);
+            this->increment_speed_y(-1.f);
         }
         return 0;
     }
@@ -413,6 +442,7 @@ public:
 };
 
 int main(){
+    set_stream_setting();
     sf::IpAddress ip("localhost");
     IntegerStream stream_device(ip, 55001);
     stream_device.connect_stream();
@@ -434,28 +464,32 @@ int main(){
     PauseThing pause_board("Pause Board", sf::Keyboard::C, "C", sf::Keyboard::P, "P");
     //Score score1(font, sf::Color::Red, sf::Vector2f(0.25 * WINDOW_SIZE_X, 0.15 * WINDOW_SIZE_Y));
     //Score score2(font, sf::Color::Blue, sf::Vector2f(0.75 * WINDOW_SIZE_X, 0.15 * WINDOW_SIZE_Y));
-    sf::Vector2f obj1_position(0.05 * WINDOW_SIZE_X, 0.15 * WINDOW_SIZE_Y);
-    sf::Vector2f obj2_position(0.95 * WINDOW_SIZE_X, 0.85 * WINDOW_SIZE_Y);
+    sf::Vector2f obj1_position(0.05 * WINDOW_SIZE_X, 0.5 * WINDOW_SIZE_Y);
+    sf::Vector2f obj2_position(0.95 * WINDOW_SIZE_X, 0.5 * WINDOW_SIZE_Y);
     RectangleSliders slider1("Left Slider", sf::Keyboard::W, "W", sf::Keyboard::S, "S", sf::Vector2f(10, 50),
                              obj1_position, sf::Color::Red);
     RectangleSliders slider2("Right Slider", sf::Keyboard::Up, "Up", sf::Keyboard::Down, "Down", sf::Vector2f(10, 50),
                              obj2_position, sf::Color::Blue);
     Ball ball("4/6", sf::Keyboard::Numpad4, "4", sf::Keyboard::Numpad6, "6", sf::Keyboard::Numpad8, "8",
-              sf::Keyboard::Numpad2, "2", BALL_SIZE, sf::Color::Green, 1.f, 1.f);
+              sf::Keyboard::Numpad2, "2", BALL_SIZE, sf::Color::Green, MAX_SPEED_BALL, 1.f);
     Playground beta("A Fun Game");
     beta.get_sliders(&slider1, &slider2);
     beta.get_ball(&ball);
     sf::RenderWindow window(sf::VideoMode(WINDOW_SIZE_X, WINDOW_SIZE_Y), beta.game_name);
     while (window.isOpen()){
-        if (STREAM){
+        if ((stream) & (!one_person_playing)){
             pause_game = false;
         }
         sf::Event event;
         while (window.pollEvent(event)) {
             if ((event.type == sf::Event::KeyPressed)) {
                 if (!pause_game){
-                    slider1.key_pressed(&event);
-                    slider2.key_pressed(&event);
+                    if (left_slider_manual){
+                        slider1.key_pressed(&event);
+                    }
+                    if (right_slider_manual){
+                        slider2.key_pressed(&event);
+                    }
                     ball.key_pressed(&event);
                 }
                 pause_board.key_pressed(&event);
@@ -465,10 +499,10 @@ int main(){
             }
         }
 
-        if (STREAM){
-            string output_message = stream_device.convert_input_to_output(slider1.get_y(),
+        if (stream){
+            string output_message = stream_device.convert_input_to_output(slider1.get_y() + 25.f,
                                                                           slider1.velocity,
-                                                                          slider2.get_y(),
+                                                                          slider2.get_y() + 25.f,
                                                                           slider2.velocity,
                                                                           ball.get_x(),
                                                                           ball.get_xdot(),
@@ -478,8 +512,13 @@ int main(){
                                                                           reward2);
 
             stream_device.send_and_receive_message(output_message, &command1, &command2);
-            slider1.increment_velocity(command1);
-            slider2.increment_velocity(command2);
+            if (!left_slider_manual){
+                slider1.increment_velocity(command1);
+            }
+            if (!right_slider_manual) {
+                slider2.increment_velocity(command2);
+            }
+
         }
         int score = ball.update_position();
         if (score != 0){
@@ -500,10 +539,12 @@ int main(){
         slider2.update_position();
         if (ball.getGlobalBounds().intersects(slider1.getGlobalBounds())){
             ball.flip_x_velocity();
+            ball.move(5.f, 0.f);
             ball.increment_speed_y(slider1.velocity);
         }
         if (ball.getGlobalBounds().intersects(slider2.getGlobalBounds())){
             ball.flip_x_velocity();
+            ball.move(-5.f, 0.f);
             ball.increment_speed_y(slider1.velocity);
         }
         window.clear();
@@ -514,17 +555,7 @@ int main(){
         window.draw(score2);
         window.draw(pauseboard);
         window.display();
-        if (STREAM){
-            sleep(0.01);
-        }
-        else{
-            if (score != 0){
-                sleep(3);
-            }
-            else{
-                sleep(0.5);
-            }
-        }
+        sleep(delay);
     }
     return 0;
 }
