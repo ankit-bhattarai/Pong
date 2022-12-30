@@ -491,10 +491,24 @@ public:
         }
     }
 
+    void handle_ball_slider_interactions(){
+        if (this->ball_pointer->getGlobalBounds().intersects(this->slider1_pointer->getGlobalBounds())){
+            this->ball_pointer->flip_x_velocity();
+            this->ball_pointer->move(5.f, 0.f);
+            this->ball_pointer->increment_speed_y(this->slider1_pointer->velocity);
+        }
+        if (this->ball_pointer->getGlobalBounds().intersects(this->slider2_pointer->getGlobalBounds())){
+            this->ball_pointer->flip_x_velocity();
+            this->ball_pointer->move(-5.f, 0.f);
+            this->ball_pointer->increment_speed_y(this->slider2_pointer->velocity);
+        }
+    }
+
     void update_positions(){
         this->handle_score();
         this->slider1_pointer->update_position();
         this->slider2_pointer->update_position();
+        this->handle_ball_slider_interactions();
     }
 
 };
@@ -559,16 +573,6 @@ int main(){
 
         }
         playground.update_positions();
-        if (ball.getGlobalBounds().intersects(slider1.getGlobalBounds())){
-            ball.flip_x_velocity();
-            ball.move(5.f, 0.f);
-            ball.increment_speed_y(slider1.velocity);
-        }
-        if (ball.getGlobalBounds().intersects(slider2.getGlobalBounds())){
-            ball.flip_x_velocity();
-            ball.move(-5.f, 0.f);
-            ball.increment_speed_y(slider1.velocity);
-        }
         window.clear();
         window.draw(slider1);
         window.draw(slider2);
