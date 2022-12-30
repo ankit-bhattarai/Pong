@@ -511,6 +511,19 @@ public:
         this->handle_ball_slider_interactions();
     }
 
+    void key_pressed(sf::Event* event_pointer){
+        if (!pause_game){
+            if (left_slider_manual){
+                this->slider1_pointer->key_pressed(event_pointer);
+            }
+            if (right_slider_manual){
+                this->slider2_pointer->key_pressed(event_pointer);
+            }
+            this->ball_pointer->key_pressed(event_pointer);
+        }
+        this->pausething_pointer->key_pressed(event_pointer);
+    }
+
 };
 
 void update_board(sf::Text* text_pointer, sf::Color color,
@@ -552,16 +565,7 @@ int main(){
         sf::Event event;
         while (window.pollEvent(event)) {
             if ((event.type == sf::Event::KeyPressed)) {
-                if (!pause_game){
-                    if (left_slider_manual){
-                        slider1.key_pressed(&event);
-                    }
-                    if (right_slider_manual){
-                        slider2.key_pressed(&event);
-                    }
-                    ball.key_pressed(&event);
-                }
-                pause_board.key_pressed(&event);
+                playground.key_pressed(&event);
             }
             if (event.type == sf::Event::Closed){
                 window.close();
