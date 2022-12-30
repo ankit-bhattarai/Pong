@@ -441,6 +441,14 @@ public:
 
 };
 
+
+void update_board(sf::Text* text_pointer, sf::Color color,
+                  float factor_x, float factor_y, sf::Text::Style style=sf::Text::Bold){
+    text_pointer->setFillColor(color);
+    text_pointer->setPosition(factor_x * WINDOW_SIZE_X, factor_y * WINDOW_SIZE_Y);
+    text_pointer->setStyle(style);
+}
+
 int main(){
     set_stream_setting();
     sf::IpAddress ip("localhost");
@@ -451,19 +459,13 @@ int main(){
     float reward2 = 0.f;
     sf::Font font;
     font.loadFromFile("SwanseaBold-D0ox.ttf");
-    sf::Text score1, score2, pauseboard;
-    score1.setFont(font); score2.setFont(font); pauseboard.setFont(font);
-    score1.setString("0"); score2.setString("0");
-    pauseboard.setString("Press 'P' to pause the game and 'C' to resume");
-    score1.setCharacterSize(30); score2.setCharacterSize(30); pauseboard.setCharacterSize(30);
-    score1.setFillColor(sf::Color::Red); score2.setFillColor(sf::Color::Blue), pauseboard.setFillColor(sf::Color::Green);
-    score1.setStyle(sf::Text::Bold); score2.setStyle(sf::Text::Bold), pauseboard.setStyle(sf::Text::Bold);
-    score1.setPosition(0.25 * WINDOW_SIZE_X, 0.15 * WINDOW_SIZE_Y);
-    score2.setPosition(0.75 * WINDOW_SIZE_X, 0.15 * WINDOW_SIZE_Y);
-    pauseboard.setPosition(0.25 * WINDOW_SIZE_X, 0.05 * WINDOW_SIZE_Y);
+    sf::Text score1("0", font, 30);
+    sf::Text score2("0", font, 30);
+    sf::Text pauseboard("Press 'P' to pause the game and 'C' to resume", font, 30);
+    update_board(&score1,  sf::Color::Red, 0.25, 0.15);
+    update_board(&score2, sf::Color::Blue, 0.75, 0.15);
+    update_board(&pauseboard, sf::Color::Green, 0.25, 0.05);
     PauseThing pause_board("Pause Board", sf::Keyboard::C, "C", sf::Keyboard::P, "P");
-    //Score score1(font, sf::Color::Red, sf::Vector2f(0.25 * WINDOW_SIZE_X, 0.15 * WINDOW_SIZE_Y));
-    //Score score2(font, sf::Color::Blue, sf::Vector2f(0.75 * WINDOW_SIZE_X, 0.15 * WINDOW_SIZE_Y));
     sf::Vector2f obj1_position(0.05 * WINDOW_SIZE_X, 0.5 * WINDOW_SIZE_Y);
     sf::Vector2f obj2_position(0.95 * WINDOW_SIZE_X, 0.5 * WINDOW_SIZE_Y);
     RectangleSliders slider1("Left Slider", sf::Keyboard::W, "W", sf::Keyboard::S, "S", sf::Vector2f(10, 50),
