@@ -491,6 +491,12 @@ public:
         }
     }
 
+    void update_positions(){
+        this->handle_score();
+        this->slider1_pointer->update_position();
+        this->slider2_pointer->update_position();
+    }
+
 };
 
 void update_board(sf::Text* text_pointer, sf::Color color,
@@ -552,9 +558,7 @@ int main(){
             stream_device.board_commands(&slider1, &slider2, &ball, left_slider_manual, right_slider_manual);
 
         }
-        playground.handle_score();
-        slider1.update_position();
-        slider2.update_position();
+        playground.update_positions();
         if (ball.getGlobalBounds().intersects(slider1.getGlobalBounds())){
             ball.flip_x_velocity();
             ball.move(5.f, 0.f);
