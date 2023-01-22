@@ -1,10 +1,11 @@
 # Introduction
 This repository contains a standalone version of the pong game made in C++ using SFML.
-To play the game just by itself, set STREAM to be false before compiling.
 
 In addition, TCP sockets are also used for the game to communicate the state of the game with a python script 
 in real time. Currently, the python code has a function can exactly determine the best place for the sliders to be to hit the ball. 
 My aim is to train a Reinforcement Learning agent that will be able to successfully play the game.
+
+If wanting to play the game by itself, set left_slider_manual or right_slider_manual to true to be able to control those sliders.
 
 # C++ Compilation and Running (Linux)
 
