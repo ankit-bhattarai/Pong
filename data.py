@@ -3,6 +3,8 @@ import random
 default_titles = ["y1", "y1dot", "y2", "y2dot", "bx", "bxdot", "by", "bydot", "r1", "r2"]
 
 """
+This list indicates what the values in the stream of text from the game mean.
+Slider 1 is the left slider, Slider 2 is the right slider.
 The values in this list correspond to:
 1. Slider 1 Position
 2. Slider 1 Velocity
@@ -15,10 +17,6 @@ The values in this list correspond to:
 9. Slider 1 Reward
 10. Slider 2 Reward
 """
-
-
-
-
 
 class State:
     def __init__(self):
@@ -36,10 +34,12 @@ class State:
         self.control_right = None
 
     def get_control_objects(self, control_left, control_right):
+        """Control left and right refer to the control objects for the left and right sliders"""
         self.control_left = control_left
         self.control_right = control_right
 
     def output_message(self):
+        """Instructions to send to the sliders is converted into a string before being sent"""
         message1 = self.control_left.string_response()
         message2 = self.control_right.string_response()
         return message1 + message2
@@ -58,6 +58,7 @@ class State:
         return dictionary
 
     def update_state(self, stream_text, keys=default_titles):
+        """Updates the state of the board using the stream of text from the game"""
         dictionary = self.get_dictionary_from_stream(stream_text, keys)
         self.y1 = dictionary["y1"]
         self.y2 = dictionary["y2"]
@@ -69,88 +70,127 @@ class State:
         self.ball_ydot = dictionary["bydot"]
         self.reward_1 = dictionary["r1"]
         self.reward_2 = dictionary["r2"]
-
+        
 class Control:
     def __init__(self, side, state_board, x, y_height):
         """
-
         Parameters
         ----------
         side:int
             -1 for left slider, 1 for right slider
         state_board: State
             An object of the state class
+        x: int
+            The x position of the slider
+        y_height: int
+            The height of the slider
         """
         self.side = side
         self.state_board = state_board
         self.x = x
         self.y_height = y_height
-        self.need_to_flip = False
 
+    @staticmethod
+    def get_sign(number):
+        """Returns the text representation of a number's sign"""
+        if number >= 0:
+            return "+"
+        return "-"
+    
+    def string_response(self):
+        response = self.response()
+        return f"{self.get_sign(response)}{abs(response)}"
+    
     def y(self):
+        """Returns the y position of this slider"""
         if self.side == -1:
             return self.state_board.y1
         return self.state_board.y2
+    
     def ydot(self):
+        """Returns the y velocity of this slider"""
         if self.side == -1:
             return self.state_board.y1dot
         return self.state_board.y2dot
+    
+    def reward(self):
+        """Returns the reward of this slider"""
+        if self.side == -1:
+            return self.state_board.reward_1
+        return self.state_board.reward_2
 
     def manual_follow(self):
+        """Returns the direction to move the slider in order to precisely follow the ball's movement in the y direction"""
         y = self.y()
         if y > self.state_board.ball_y:
             return -1
         elif y < self.state_board.ball_y:
             return 1
         return 0
+    
+    def calculate_final_y(self):
+        """Calculates the y position of the ball when it reaches the same x position as the slider"""
+        ball_x_dot = self.state_board.ball_xdot
+        ball_y_dot = self.state_board.ball_ydot
+        ball_x = self.state_board.ball_x
+        ball_y = self.state_board.ball_y
 
-    def estimate_final_y(self):
-        bx_dot = self.state_board.ball_xdot
-        if bx_dot == -1 * self.side:
+        # Edge Cases
+        if (ball_x_dot > 0 and self.side == -1) or (ball_x_dot < 0 and self.side == 1):
+            # If the ball is moving away from the slider, return the middle y value to prevent slider moving unnecessarily
             return self.y_height / 2
-        if bx_dot == 0:
+        if ball_x_dot == 0:
+            # If the ball is not moving in the x direction, it will never reach the slider, so return the middle y value to prevent slider moving unnecessarily
             return self.y_height / 2
-        by_dot = self.state_board.ball_ydot
+        if ball_y_dot == 0: # zero y velocity means that the y value wont change
+            return ball_y
+        x = self.x
 
-        bx = self.state_board.ball_x
-        by = self.state_board.ball_y
-        if by_dot == 0: # zero y velocity means that the y value wont change
-            return by
-        x = self.x #1425
-        time_for_ball_to_hit_slider = (x - bx) / bx_dot
+
+        time_for_ball_to_hit_slider = (x - ball_x) / ball_x_dot
+        # Calculates the time for the ball to reach the slider based on the x position of the slider and the ball as well as the x velocity of the ball
         # If ball going to right, x > bx and bx_dot > 0
         # If ball going to left, x < bx and bx_dot < 0
         # In both cases time is going to be positive
-        time_ball_bottom_top = self.y_height / abs(by_dot) # Time for the ball to go from the bottom to the top
+        
+        # In the time the ball reaches the slider, it can go up and down multiple times, ending up at the same y coordinate
+        # We are only interested in the final y position so can remove the effect of these trips where the ball bounces between the bottom and top of the board
+        time_ball_bottom_top = self.y_height / abs(ball_y_dot) # Time for the ball to go from the bottom to the top
         # by_dot has an abs as it can be both positive and negative
-        time_ball_full_trip = 2 * time_ball_bottom_top # Time for the ball to go from the bottom to the top & back down
+        time_ball_full_trip = 2 * time_ball_bottom_top # Time for the ball to go from the bottom of the board to the top & back down
         # Going up and down several times basically cancels out the net y position
+
         time_left = time_for_ball_to_hit_slider % time_ball_full_trip
         # In this time left, the ball can only go up and down by an amount less than the full trip
-        if by_dot > 0: # y increasing
-            y_to_increase = self.y_height - by
-            time_for_y_to_increase = y_to_increase / by_dot
-            if time_for_y_to_increase >= time_left: # Ball doesn't have enough time to increase in y
-                y_increase = by_dot * time_left
-                y_ball_final = by + y_increase
-            else: # Ball has enough time to go up and come back down
-                time_to_go_down = time_left - time_for_y_to_increase
-                y_down_from_top = by_dot * time_to_go_down
-                y_ball_final = self.y_height - y_down_from_top
-        else: # y decreasing
-            y_to_decrease = - by # this value will be negative
-            time_for_y_to_decrease = y_to_decrease / by_dot # As both values are negative, this will be positive
-            if time_for_y_to_decrease >= time_left:
-                y_decrease = by_dot * time_left # This value will also be negative
-                y_ball_final = by + y_decrease # As y_decrease is negative, + is the right sign
+        # This is what we are interested in to evaluate the final y position of the ball
+        # There are 2 cases each for when the ball is going up and when the ball is going down
+        if ball_y_dot > 0: # ball is going up
+            y_gap_from_top = self.y_height - ball_y
+            time_for_y_to_reach_top = y_gap_from_top / ball_y_dot
+            if time_for_y_to_reach_top >= time_left: # Ball doesn't have enough time to reach the top while y is increasing
+                # Final y decided based on current y, y velocity and time left
+                y_ball_final = ball_y + ball_y_dot * time_left
+            else: # Ball has enough time to go up and to max y and come back down
+                time_to_go_down_from_top = time_left - time_for_y_to_reach_top # How much time is left after the ball reaches the top
+                # Final y decided based on max y, y velocity and time left as it is going down, hence the negative sign for y velocity
+                y_ball_final = self.y_height - ball_y_dot * time_to_go_down_from_top
+
+        else: # y decreasing, ball going down
+            y_drop_to_bottom = - ball_y # this value will be negative
+            time_for_y_drop_to_bottom = y_drop_to_bottom / ball_y_dot # As both values are negative, this will be positive
+            if time_for_y_drop_to_bottom >= time_left: #  Ball doesn't have enough time to reach the bottom while y is decreasing
+                y_decrease = ball_y_dot * time_left # This value will also be negative
+                y_ball_final = ball_y + y_decrease # As y_decrease is negative, + is the right sign
             else: # Ball has enough time to go down and come back up
-                time_to_go_up = time_left - time_for_y_to_decrease
-                y_up_from_bottom = abs(by_dot) * time_to_go_up
+                time_to_go_up = time_left - time_for_y_drop_to_bottom
+                # Final y decided based on bottom y, y velocity and time left as it is going up, hence the negative sign for y velocity
+                y_up_from_bottom =  -1 * ball_y_dot * time_to_go_up
                 y_ball_final = y_up_from_bottom
         return y_ball_final
 
-    def exact_y_control(self):
-        final_y = self.estimate_final_y()
+    def calculate_final_y_control(self):
+        """Returns the direction to move the slider in order to reach the y position given by estimate_final_y"""
+        final_y = self.calculate_final_y()
         y = self.y()
         if y > final_y:
             return -1
@@ -159,27 +199,11 @@ class Control:
         return 0
 
 
-
     def response(self):
         #return self.manual_follow()
-        return self.exact_y_control()
-    @staticmethod
-    def get_sign(number):
-        """Returns the text representation of a numbers sign"""
-        if number >= 0:
-            return "+"
-        return "-"
-    def string_response(self):
-        response = self.response()
-        return f"{self.get_sign(response)}{abs(response)}"
+        return self.calculate_final_y_control()
 
-    def time_to_impact(self):
-        if self.side == 1:
-            x = 75
-        else:
-            x = 1425
-        ball_x = self.state_board.ball_x
-        ball_xdot = self.state_board.ball_xdot
+    
 
 
 
