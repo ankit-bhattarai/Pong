@@ -14,9 +14,12 @@
 
 using namespace std;
 
+// Defining some constants
+
 #define WINDOW_SIZE_X 1500
 #define WINDOW_SIZE_Y 500
 
+// Limits of the ball and slider from the window edges
 #define Y_LIM_SLIDER_UP 5
 #define Y_LIM_SLIDER_DOWN 445
 #define X_LIM_BALL 5
@@ -24,34 +27,40 @@ using namespace std;
 
 #define BALL_SIZE 10.0
 
+// Limits for the speed of the sliders and ball
 #define MAX_SPEED_SLIDER 5.0
-#define DELTA_SPEED_SLIDER 1.0
+#define DELTA_SPEED_SLIDER 5.0
+#define MAX_SPEED_BALL 3.0
+#define DELTA_SPEED_BALL 3.0
 
-#define MAX_SPEED_BALL 5.0
-#define DELTA_SPEED_BALL 1.0
-
+// Bool variables which control the game mode (1v1, 1vCPU, CPUvCPU as well as the pause settings and stream mode)
 bool pause_game = true;
 bool stream = true;
 bool slider_velocity=false;
 
 bool left_slider_manual = false;
 bool right_slider_manual = false;
-bool one_person_playing = true;
+bool person_playing = true;
 
+// Variables which control the delay between the frames
 float delay = 0.5;
 
 void set_stream_setting(){
+    // Will correct for discrepancies when setting the settings above with the boolean values
     if ((left_slider_manual) | (right_slider_manual)){
-        stream = true;
-        one_person_playing = true;
-        delay = 0.5;
         if ((left_slider_manual) & (right_slider_manual)){
+            // Will set the stream to false only if both sliders are manual
             stream = false;
         }
+        else{
+            stream = true;
+        }
+        person_playing = true; // If a person or two persons are playing the game
+        delay = 0.5; // Frame refresh delay
     }
-    else{
+    else{// Computer playing the game
         stream = true;
-        one_person_playing = false;
+        person_playing = false;
         delay = 0.01;
     }
     std::cout << "Stream: " << stream << " Left Manual: " << left_slider_manual << " Right Manual: ";
@@ -475,14 +484,20 @@ public:
 
     void handle_score(){
         int score = this->ball_pointer->update_position();
+        this->slider1_pointer->reward = 0;
+        this->slider2_pointer->reward = 0;
         if (score != 0){
-            if (score == 1){
+            if (score == 1){ // slider 2 scored
                 this->slider2_pointer->increment_score();
                 this->score2_pointer->setString(this->slider2_pointer->get_string_score());
+                this->slider2_pointer->reward = 1;
+                this->slider1_pointer->reward = -1;
             }
             else{ // slider 1 scored
                 this->slider1_pointer->increment_score();
                 this->score1_pointer->setString(this->slider1_pointer->get_string_score());
+                this->slider1_pointer->reward = 1;
+                this->slider2_pointer->reward = -1;
             }
             this->slider1_pointer->reset();
             this->slider2_pointer->reset();
@@ -546,7 +561,7 @@ int main(){
     playground.get_scores_board(&score1, &score2);
     sf::RenderWindow window(sf::VideoMode(WINDOW_SIZE_X, WINDOW_SIZE_Y), playground.game_name);
     while (window.isOpen()){
-        if ((stream) & (!one_person_playing)){
+        if ((stream) & (!person_playing)){
             pause_game = false;
         }
         sf::Event event;
